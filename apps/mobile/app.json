@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "SkyGuard Mobile",
+    "slug": "skyguard-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0B0F17"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skyguard.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0F17"
+      },
+      "package": "com.skyguard.mobile"
+    }
+  }
+}

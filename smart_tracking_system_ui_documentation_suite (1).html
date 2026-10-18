@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyGuard - Smart Tracking System for Urban Delivery Drones</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 font-sans antialiased overflow-hidden flex flex-col">
+
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-md z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center">
+                <i class="fa-solid fa-drone text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                    SkyGuard <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">Urban Fleet v2.4</span>
+                </h1>
+                <p class="text-xs text-slate-400">Smart Tracking, GPS Telemetry & Ultrasonic Obstacle System</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs for Documentation Screenshots -->
+        <nav class="hidden md:flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-700">
+            <button onclick="switchTab('live')" id="tab-live" class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition bg-indigo-600 text-white shadow">
+                <i class="fa-solid fa-map-location-dot mr-1"></i> Live Tracking Map
+            </button>
+            <button onclick="switchTab('analytics')" id="tab-analytics" class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-slate-300 hover:text-white">
+                <i class="fa-solid fa-chart-line mr-1"></i> Fleet Analytics & Metrics
+            </button>
+            <button onclick="switchTab('hardware')" id="tab-hardware" class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-slate-300 hover:text-white">
+                <i class="fa-solid fa-microchip mr-1"></i> Hardware Specs & GSM Logs
+            </button>
+        </nav>
+
+        <div class="flex items-center space-x-3">
+            <div class="hidden xl:flex items-center space-x-2 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-700/60 text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-slate-300">GSM Link: <strong class="text-emerald-400">Active (5G/LTE)</strong></span>
+            </div>
+            <button onclick="triggerEmergencyAlert()" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg shadow-rose-600/20 transition flex items-center gap-1.5 active:scale-95">
+                <i class="fa-solid fa-triangle-exclamation"></i> Emergency Recall
+            </button>
+            <div class="h-6 w-px bg-slate-700 hidden sm:block"></div>
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-semibold text-xs text-indigo-300 border border-slate-600">
+                    JD
+                </div>
+                <span class="text-sm font-medium hidden sm:inline">Logistics Mgr</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- VIEW 1: LIVE TRACKING MAP & DRONE SIDEBAR -->
+        <div id="view-live" class="flex-1 flex flex-col lg:flex-row overflow-hidden w-full h-full">
+            
+            <!-- Sidebar: Active Drone Fleet List -->
+            <aside class="w-full lg:w-80 bg-slate-800/80 border-r border-slate-700 flex flex-col shrink-0">
+                <div class="p-4 border-b border-slate-700/80 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-helicopter text-indigo-400"></i> Active Units (<span id="drone-count">4</span>)
+                    </h2>
+                    <button onclick="addNewDrone()" class="text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 px-2.5 py-1 rounded border border-indigo-500/30 transition flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Deploy Drone
+                    </button>
+                </div>
+                <div id="drone-list" class="flex-1 overflow-y-auto divide-y divide-slate-700/50">
+                    <!-- Populated dynamically via JS -->
+                </div>
+                <!-- System Status Summary Footer -->
+                <div class="p-4 bg-slate-900/60 border-t border-slate-700 space-y-2 text-xs">
+                    <div class="flex justify-between text-slate-400">
+                        <span>Total Deliveries Today:</span>
+                        <span class="font-bold text-slate-200">142</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span>Ultrasonic Avoidance Triggers:</span>
+                        <span class="font-bold text-amber-400">3 Prevented</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span>GSM Packet Integrity:</span>
+                        <span class="font-bold text-emerald-400">99.98%</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Canvas Viewport & Telemetry Overlay -->
+            <main class="flex-1 flex flex-col bg-slate-950 relative overflow-hidden">
+                
+                <!-- Floating Info Header Bar -->
+                <div class="absolute top-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
+                    <div class="bg-slate-900/90 backdrop-blur border border-slate-700/80 p-3 rounded-xl shadow-2xl pointer-events-auto flex items-center space-x-4">
+                        <div>
+                            <p class="text-[10px] uppercase font-semibold text-slate-400">Selected Unit</p>
+                            <h3 id="selected-drone-name" class="text-sm font-bold text-indigo-400">DRONE-01 (Alpha)</h3>
+                        </div>
+                        <div class="h-6 w-px bg-slate-700"></div>
+                        <div class="flex space-x-4 text-xs">
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">BATTERY</span>
+                                <span id="stat-battery" class="font-semibold text-emerald-400">88%</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">ALTITUDE</span>
+                                <span id="stat-altitude" class="font-semibold text-slate-200">45.2 m</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">SPEED</span>
+                                <span id="stat-speed" class="font-semibold text-slate-200">14.2 m/s</span>
+                            </div>
+                            <div class="hidden sm:block">
+                                <span class="text-slate-400 block text-[10px]">SECURITY</span>
+                                <span id="stat-security" class="font-semibold text-emerald-400">Secure (Encrypted)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/90 backdrop-blur border border-slate-700/80 p-2 rounded-xl shadow-2xl pointer-events-auto flex items-center space-x-2">
+                        <button onclick="toggleSimulation()" id="sim-toggle-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-pause"></i> Pause Sim
+                        </button>
+                        <button onclick="recenterMap()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition border border-slate-600">
+                            Recenter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive Canvas -->
+                <div class="flex-1 relative cursor-crosshair">
+                    <canvas id="mapCanvas" class="w-full h-full block"></canvas>
+                    <!-- Simulation Legend Overlay -->
+                    <div class="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg text-[11px] space-y-1 text-slate-300 pointer-events-none hidden sm:block shadow-lg">
+                        <div class="flex items-center gap-2 font-semibold text-slate-200 mb-0.5"><i class="fa-solid fa-circle-info text-indigo-400"></i> Legend</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span> Active GPS Flight Path</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Ultrasonic Obstacle Avoidance</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Delivery Destination Pin</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Telemetry & GSM Alert Stream Drawer -->
+                <div class="bg-slate-900 border-t border-slate-800 p-4 h-44 flex flex-col shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-tower-broadcast text-indigo-400"></i> Real-time GSM Alert Stream & Ultrasonic Sensor Logs
+                        </h4>
+                        <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live Feed
+                        </span>
+                    </div>
+                    <div id="log-container" class="flex-1 bg-slate-950/90 border border-slate-800/80 rounded-lg p-2.5 overflow-y-auto space-y-1.5 font-mono text-[11px]">
+                        <!-- Logs populated dynamically -->
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- VIEW 2: FLEET ANALYTICS & METRICS DASHBOARD (For Documentation Screenshots) -->
+        <div id="view-analytics" class="hidden flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full">
+            <div class="max-w-6xl mx-auto w-full space-y-6">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line text-indigo-400"></i> Fleet Performance & Delivery Analytics
+                        </h2>
+                        <p class="text-xs text-slate-400">Comprehensive metrics for urban drone logistics, battery health, and safety audits.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg font-mono">Report Date: October 2026</span>
+                        <button onclick="alertBox('Exporting analytics PDF report for project documentation...')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
+                            <i class="fa-solid fa-download mr-1"></i> Export Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400 uppercase">Success Rate</span>
+                            <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><i class="fa-solid fa-circle-check"></i></span>
+                        </div>
+                        <div class="mt-3">
+                            <h3 class="text-2xl font-bold text-white">99.4%</h3>
+                            <p class="text-[11px] text-emerald-400 mt-1"><i class="fa-solid fa-arrow-up"></i> +0.6% vs last week</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400 uppercase">Avg Delivery Time</span>
+                            <span class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400"><i class="fa-solid fa-clock"></i></span>
+                        </div>
+                        <div class="mt-3">
+                            <h3 class="text-2xl font-bold text-white">12.4 min</h3>
+                            <p class="text-[11px] text-indigo-300 mt-1">Urban radius &lt; 5km</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400 uppercase">Obstacles Avoided</span>
+                            <span class="p-2 rounded-lg bg-amber-500/10 text-amber-400"><i class="fa-solid fa-shield-halved"></i></span>
+                        </div>
+                        <div class="mt-3">
+                            <h3 class="text-2xl font-bold text-white">48</h3>
+                            <p class="text-[11px] text-amber-400 mt-1">Ultrasonic sensor detections</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400 uppercase">GSM Packet Alerts</span>
+                            <span class="p-2 rounded-lg bg-rose-500/10 text-rose-400"><i class="fa-solid fa-tower-broadcast"></i></span>
+                        </div>
+                        <div class="mt-3">
+                            <h3 class="text-2xl font-bold text-white">0 Breaches</h3>
+                            <p class="text-[11px] text-emerald-400 mt-1">Full secure status</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mock Charts / Documentation Tables Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Table 1: Recent Fleet Deliveries -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-indigo-400"></i> Recent Completed Deliveries
+                        </h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-slate-400 uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-2.5 rounded-l-lg">Pkg ID</th>
+                                        <th class="p-2.5">Drone Unit</th>
+                                        <th class="p-2.5">Destination</th>
+                                        <th class="p-2.5">Status</th>
+                                        <th class="p-2.5 rounded-r-lg">Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60 font-mono text-slate-300">
+                                    <tr>
+                                        <td class="p-2.5 font-bold text-indigo-400">PKG-9041</td>
+                                        <td class="p-2.5">DRONE-01</td>
+                                        <td class="p-2.5 text-slate-400">Sector 4 (Downtown)</td>
+                                        <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Delivered</span></td>
+                                        <td class="p-2.5">11m 20s</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2.5 font-bold text-indigo-400">PKG-9042</td>
+                                        <td class="p-2.5">DRONE-02</td>
+                                        <td class="p-2.5 text-slate-400">Sector 2 (University)</td>
+                                        <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Delivered</span></td>
+                                        <td class="p-2.5">09m 45s</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2.5 font-bold text-indigo-400">PKG-9043</td>
+                                        <td class="p-2.5">DRONE-03</td>
+                                        <td class="p-2.5 text-slate-400">Sector 7 (Residential)</td>
+                                        <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px]">Rerouted</span></td>
+                                        <td class="p-2.5">15.2m</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2.5 font-bold text-indigo-400">PKG-9044</td>
+                                        <td class="p-2.5">DRONE-04</td>
+                                        <td class="p-2.5 text-slate-400">Sector 1 (Commercial)</td>
+                                        <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Delivered</span></td>
+                                        <td class="p-2.5">08m 12s</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Table 2: Battery & Hardware Health -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-battery-three-quarters text-emerald-400"></i> Fleet Battery & Telemetry Health
+                        </h3>
+                        <div class="space-y-3 pt-2">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-medium text-slate-300">DRONE-01 (Alpha) - LiPo 4S</span>
+                                    <span class="text-emerald-400 font-bold">88%</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-500 h-full rounded-full" style="width: 88%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-medium text-slate-300">DRONE-02 (Bravo) - LiPo 4S</span>
+                                    <span class="text-emerald-400 font-bold">64%</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-500 h-full rounded-full" style="width: 64%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-medium text-slate-300">DRONE-03 (Gamma) - LiPo 4S (Returning)</span>
+                                    <span class="text-amber-400 font-bold">22%</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-amber-500 h-full rounded-full" style="width: 22%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="font-medium text-slate-300">DRONE-04 (Delta) - LiPo 4S</span>
+                                    <span class="text-emerald-400 font-bold">95%</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-500 h-full rounded-full" style="width: 95%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: HARDWARE SPECS & SYSTEM DOCUMENTATION VIEW -->
+        <div id="view-hardware" class="hidden flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full">
+            <div class="max-w-5xl mx-auto w-full space-y-6">
+                <!-- Header -->
+                <div class="border-b border-slate-800 pb-4">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-microchip text-indigo-400"></i> Hardware Architecture & GSM Integration
+                    </h2>
+                    <p class="text-xs text-slate-400">Technical specifications of onboard microcontrollers, sensors, and communication modules.</p>
+                </div>
+
+                <!-- Architecture Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/30">
+                            <i class="fa-solid fa-satellite"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white">GPS Module (NEO-M8N)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Provides high-precision real-time coordinates (Latitude, Longitude) at 10Hz refresh rate. Enables precise route tracking and geofencing.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center font-bold text-lg border border-amber-500/30">
+                            <i class="fa-solid fa-wave-square"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white">Ultrasonic Sensor (HC-SR04)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Mounted facing downwards and forwards for altitude stabilization and obstacle detection within a 2m to 400m range to prevent urban collisions.
+                        </p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-lg border border-emerald-500/30">
+                            <i class="fa-solid fa-tower-broadcast"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white">GSM Module (SIM800L / 5G)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Transmits telemetry data packets and automated emergency alerts to the central web dashboard via cellular networks with minimal latency.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- System Workflow diagram text box -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">System Workflow & Packet Security</h3>
+                    <div class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-indigo-300 border border-slate-800 leading-relaxed space-y-2">
+                        <p>1. <strong>Waypoint Generation:</strong> Logistics manager assigns drop-off coordinates via Web Dashboard.</p>
+                        <p>2. <strong>In-Flight Telemetry:</strong> GPS & Ultrasonic sensors stream altitude, speed, and coordinates over GSM.</p>
+                        <p>3. <strong>Obstacle Mitigation:</strong> If HC-SR04 detects obstruction, autonomous rerouting triggers an instant alert.</p>
+                        <p>4. <strong>Secure Handoff:</strong> Upon arrival, package release requires digital token verification to prevent theft.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Custom Modal for Alerts (Replacing alert() rule) -->
+    <div id="customModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center space-x-3">
+                <div id="modalIcon" class="w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 id="modalTitle" class="text-sm font-bold text-white">System Notification</h3>
+                    <p class="text-xs text-slate-400">SkyGuard Security Daemon</p>
+                </div>
+            </div>
+            <p id="modalMessage" class="text-sm text-slate-300 leading-relaxed">Message content goes here.</p>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow transition">
+                    Understood
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let drones = [
+            {
+                id: 1, name: "DRONE-01 (Alpha)", status: "En Route", battery: 88, altitude: 45.2, speed: 14.2, 
+                lat: 30, lng: 40, targetX: 800, targetY: 200, currentX: 150, currentY: 300, 
+                routeColor: "#6366f1", packageId: "PKG-9041", securityStatus: "Secure", obstacleWarning: false
+            },
+            {
+                id: 2, name: "DRONE-02 (Bravo)", status: "Approaching Drop", battery: 64, altitude: 12.0, speed: 5.1, 
+                lat: 45, lng: 12, targetX: 650, targetY: 450, currentX: 600, currentY: 420, 
+                routeColor: "#10b981", packageId: "PKG-9042", securityStatus: "Secure", obstacleWarning: true
+            },
+            {
+                id: 3, name: "DRONE-03 (Gamma)", status: "Returning to Hub", battery: 22, altitude: 60.5, speed: 18.0, 
+                lat: 12, lng: 89, targetX: 100, targetY: 100, currentX: 450, currentY: 250, 
+                routeColor: "#f59e0b", packageId: "PKG-9043", securityStatus: "Warning: Low Batt", obstacleWarning: false
+            },
+            {
+                id: 4, name: "DRONE-04 (Delta)", status: "Hovering / Secure", battery: 95, altitude: 30.0, speed: 0.0, 
+                lat: 78, lng: 45, targetX: 300, targetY: 500, currentX: 300, currentY: 500, 
+                routeColor: "#ec4899", packageId: "PKG-9044", securityStatus: "Secure", obstacleWarning: false
+            }
+        ];
+
+        let selectedDroneId = 1;
+        let isSimulating = true;
+        let canvas, ctx;
+
+        window.onload = function() {
+            canvas = document.getElementById('mapCanvas');
+            ctx = canvas.getContext('2d');
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            renderDroneList();
+            selectDrone(1);
+            addLog("System initialized. GSM telemetry link stable across all 4 urban sectors.", "info");
+
+            requestAnimationFrame(simulationLoop);
+        };
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function switchTab(tab) {
+            const liveView = document.getElementById('view-live');
+            const analyticsView = document.getElementById('view-analytics');
+            const hardwareView = document.getElementById('view-hardware');
+
+            const btnLive = document.getElementById('tab-live');
+            const btnAnalytics = document.getElementById('tab-analytics');
+            const btnHardware = document.getElementById('tab-hardware');
+
+            // Reset all
+            liveView.className = "hidden flex-1 flex-col lg:flex-row overflow-hidden w-full h-full";
+            analyticsView.className = "hidden flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full";
+            hardwareView.className = "hidden flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full";
+
+            btnLive.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-slate-300 hover:text-white";
+            btnAnalytics.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-slate-300 hover:text-white";
+            btnHardware.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition text-slate-300 hover:text-white";
+
+            if (tab === 'live') {
+                liveView.className = "flex-1 flex flex-col lg:flex-row overflow-hidden w-full h-full";
+                btnLive.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition bg-indigo-600 text-white shadow";
+                resizeCanvas();
+            } else if (tab === 'analytics') {
+                analyticsView.className = "flex flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full";
+                btnAnalytics.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition bg-indigo-600 text-white shadow";
+            } else if (tab === 'hardware') {
+                hardwareView.className = "flex flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full";
+                btnHardware.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition bg-indigo-600 text-white shadow";
+            }
+        }
+
+        function renderDroneList() {
+            const container = document.getElementById('drone-list');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            drones.forEach(drone => {
+                const isSelected = drone.id === selectedDroneId;
+                const div = document.createElement('div');
+                div.className = `p-3.5 cursor-pointer transition hover:bg-slate-700/40 flex items-center justify-between ${isSelected ? 'bg-indigo-950/40 border-l-4 border-indigo-500' : ''}`;
+                div.onclick = () => selectDrone(drone.id);
+
+                let statusColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+                if (drone.status.includes('Returning')) statusColor = 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+                if (drone.obstacleWarning) statusColor = 'text-rose-400 bg-rose-500/10 border-rose-500/20 animate-pulse';
+
+                div.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-sm text-slate-200">${drone.name}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded border ${statusColor}">${drone.status}</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Pkg: <span class="text-slate-300 font-mono">${drone.packageId}</span></p>
+                    </div>
+                    <div class="text-right space-y-1">
+                        <span class="text-xs font-mono font-medium text-indigo-300">${drone.battery}% <i class="fa-solid fa-battery-three-quarters"></i></span>
+                        <div class="text-[10px] text-slate-400">${drone.altitude.toFixed(1)}m alt</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            const droneCountEl = document.getElementById('drone-count');
+            if (droneCountEl) droneCountEl.innerText = drones.length;
+        }
+
+        function selectDrone(id) {
+            selectedDroneId = id;
+            const drone = drones.find(d => d.id === id);
+            if (!drone) return;
+
+            const nameEl = document.getElementById('selected-drone-name');
+            const batEl = document.getElementById('stat-battery');
+            const altEl = document.getElementById('stat-altitude');
+            const speedEl = document.getElementById('stat-speed');
+            const secEl = document.getElementById('stat-security');
+
+            if (nameEl) nameEl.innerText = `${drone.name} (${drone.packageId})`;
+            if (batEl) batEl.innerText = `${drone.battery}%`;
+            if (altEl) altEl.innerText = `${drone.altitude.toFixed(1)} m`;
+            if (speedEl) speedEl.innerText = `${drone.speed.toFixed(1)} m/s`;
+            if (secEl) secEl.innerText = drone.securityStatus;
+            
+            renderDroneList();
+        }
+
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('log-container');
+            if (!container) return;
+            const timeStr = new Date().toLocaleTimeString();
+            let colorClass = 'text-slate-300';
+            let icon = 'fa-circle-info text-indigo-400';
+
+            if (type === 'warning') {
+                colorClass = 'text-amber-300';
+                icon = 'fa-triangle-exclamation text-amber-400';
+            } else if (type === 'danger') {
+                colorClass = 'text-rose-300 font-bold';
+                icon = 'fa-circle-exclamation text-rose-500';
+            } else if (type === 'success') {
+                colorClass = 'text-emerald-300';
+                icon = 'fa-circle-check text-emerald-400';
+            }
+
+            const item = document.createElement('div');
+            item.className = `flex items-center gap-2 py-0.5 ${colorClass}`;
+            item.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> <i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+            container.prepend(item);
+
+            if (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function simulationLoop() {
+            if (isSimulating) {
+                updateSimulationStep();
+            }
+            drawMap();
+            requestAnimationFrame(simulationLoop);
+        }
+
+        function updateSimulationStep() {
+            const width = canvas ? canvas.width / window.devicePixelRatio : 800;
+            const height = canvas ? canvas.height / window.devicePixelRatio : 600;
+
+            drones.forEach(drone => {
+                const dx = drone.targetX - drone.currentX;
+                const dy = drone.targetY - drone.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist > 5) {
+                    drone.currentX += (dx / dist) * (drone.speed * 0.15);
+                    drone.currentY += (dy / dist) * (drone.speed * 0.15);
+                } else {
+                    drone.targetX = Math.random() * (width - 100) + 50;
+                    drone.targetY = Math.random() * (height - 100) + 50;
+                    
+                    if (Math.random() > 0.7) {
+                        addLog(`GSM Telemetry: ${drone.name} successfully cleared waypoint coordinates (${Math.round(drone.targetX)}, ${Math.round(drone.targetY)}).`, 'success');
+                    }
+                }
+
+                if (Math.random() < 0.02 && drone.battery > 5) {
+                    drone.battery -= 1;
+                }
+                drone.altitude += (Math.random() - 0.5) * 0.5;
+                drone.altitude = Math.max(10, Math.min(120, drone.altitude));
+
+                if (Math.random() < 0.005) {
+                    drone.obstacleWarning = !drone.obstacleWarning;
+                    if (drone.obstacleWarning) {
+                        addLog(`Ultrasonic Sensor Warning: ${drone.name} detected urban obstruction at alt ${drone.altitude.toFixed(1)}m! Rerouting via GSM command.`, 'warning');
+                    } else {
+                        addLog(`Obstacle cleared for ${drone.name}. Resuming optimal delivery vectors.`, 'success');
+                    }
+                }
+            });
+
+            const selDrone = drones.find(d => d.id === selectedDroneId);
+            if (selDrone) {
+                const batEl = document.getElementById('stat-battery');
+                const altEl = document.getElementById('stat-altitude');
+                const speedEl = document.getElementById('stat-speed');
+                if (batEl) batEl.innerText = `${selDrone.battery}%`;
+                if (altEl) altEl.innerText = `${selDrone.altitude.toFixed(1)} m`;
+                if (speedEl) speedEl.innerText = `${selDrone.speed.toFixed(1)} m/s`;
+            }
+        }
+
+        function drawMap() {
+            if (!ctx || !canvas) return;
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw urban grid
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            const gridSize = 60;
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Draw Central Hub Station
+            ctx.fillStyle = '#312e81';
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(80, 80, 24, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#a5b4fc';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.fillText('HUB CENTRAL', 45, 120);
+
+            // Draw Drones & Target Lines
+            drones.forEach(drone => {
+                const isSelected = drone.id === selectedDroneId;
+
+                ctx.strokeStyle = drone.routeColor;
+                ctx.lineWidth = isSelected ? 2 : 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(drone.currentX, drone.currentY);
+                ctx.lineTo(drone.targetX, drone.targetY);
+                ctx.stroke();
+                ctx.setLineDash([]); // Fixed: pass empty array instead of 0 arguments
+
+                ctx.fillStyle = drone.obstacleWarning ? '#f43f5e' : '#10b981';
+                ctx.beginPath();
+                ctx.arc(drone.targetX, drone.targetY, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = isSelected ? '#ffffff' : '#4f46e5';
+                ctx.strokeStyle = drone.routeColor;
+                ctx.lineWidth = isSelected ? 3 : 2;
+                ctx.beginPath();
+                ctx.arc(drone.currentX, drone.currentY, isSelected ? 10 : 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                if (isSelected) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(drone.currentX, drone.currentY, 16, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 11px Inter, sans-serif';
+                ctx.fillText(drone.name.split(' ')[0], drone.currentX + 14, drone.currentY + 4);
+            });
+        }
+
+        function toggleSimulation() {
+            isSimulating = !isSimulating;
+            const btn = document.getElementById('sim-toggle-btn');
+            if (isSimulating) {
+                btn.innerHTML = `<i class="fa-solid fa-pause"></i> Pause Sim`;
+                btn.className = "bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5";
+                addLog("Simulation resumed.", "info");
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> Resume Sim`;
+                btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5";
+                addLog("Simulation paused by operator.", "warning");
+            }
+        }
+
+        function recenterMap() {
+            const drone = drones.find(d => d.id === selectedDroneId);
+            if (drone) {
+                addLog(`Recentered display on ${drone.name}. GPS Lat: ${drone.lat}, Lng: ${drone.lng}.`, "info");
+            }
+        }
+
+        function addNewDrone() {
+            const newId = drones.length + 1;
+            const names = ["Echo", "Foxtrot", "Golf", "Hotel", "India"];
+            const randomName = names[(newId - 1) % names.length];
+            const colors = ["#8b5cf6", "#06b6d4", "#f97316", "#14b8a6", "#a855f7"];
+            
+            const newDrone = {
+                id: newId,
+                name: `DRONE-0${newId} (${randomName})`,
+                status: "En Route",
+                battery: 100,
+                altitude: 40.0,
+                speed: 15.0,
+                lat: Math.floor(Math.random() * 90),
+                lng: Math.floor(Math.random() * 90),
+                targetX: Math.random() * 600 + 100,
+                targetY: Math.random() * 400 + 100,
+                currentX: 80,
+                currentY: 80,
+                routeColor: colors[newId % colors.length],
+                packageId: `PKG-904${newId}`,
+                securityStatus: "Secure",
+                obstacleWarning: false
+            };
+
+            drones.push(newDrone);
+            renderDroneList();
+            selectDrone(newId);
+            addLog(`New delivery drone ${newDrone.name} successfully deployed from Central Hub with PKG ID ${newDrone.packageId}.`, "success");
+        }
+
+        function triggerEmergencyAlert() {
+            alertBox("EMERGENCY OVERRIDE: GSM recall signal broadcasted to fleet. All drones returning to Hub immediately!", "danger");
+            addLog(`EMERGENCY OVERRIDE: GSM recall signal broadcasted to fleet. All drones returning to Hub immediately!`, "danger");
+            drones.forEach(d => {
+                d.status = "Returning to Hub";
+                d.targetX = 80;
+                d.targetY = 80;
+            });
+            renderDroneList();
+        }
+
+        function alertBox(message, type = 'warning') {
+            const modal = document.getElementById('customModal');
+            const msgEl = document.getElementById('modalMessage');
+            const iconEl = document.getElementById('modalIcon');
+            
+            if (msgEl) msgEl.innerText = message;
+            if (iconEl) {
+                if (type === 'danger') {
+                    iconEl.className = "w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30";
+                    iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                } else {
+                    iconEl.className = "w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30";
+                    iconEl.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
+                }
+            }
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('customModal');
+            if (modal) modal.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+    "name":  "my-crossplatform-system",
+    "version":  "1.0.0",
+    "private":  true,
+    "description":  "Production-grade, enterprise-ready cross-platform system with Turborepo, React, Electron, and Expo",
+    "packageManager":  "pnpm@12.14.0",
+    "scripts":  {
+                    "build":  "turbo run build",
+                    "dev":  "turbo run dev",
+                    "lint":  "turbo run lint",
+                    "typecheck":  "turbo run typecheck",
+                    "dev:web":  "pnpm --filter @app/web dev",
+                    "dev:desktop":  "pnpm --filter @app/desktop dev",
+                    "dev:mobile":  "pnpm --filter @app/mobile start",
+                    "build:web":  "pnpm --filter @app/web build",
+                    "build:desktop":  "pnpm --filter @app/desktop build",
+                    "build:mobile":  "pnpm --filter @app/mobile build",
+                    "clean":  "turbo run clean \u0026\u0026 rm -rf node_modules"
+                },
+    "devDependencies":  {
+                            "turbo":  "^2.4.4",
+                            "typescript":  "^5.7.3"
+                        },
+    "workspaces":  [
+                       "packages/*",
+                       "apps/*"
+                   ]
+}

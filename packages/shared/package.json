@@ -1,0 +1,29 @@
+{
+  "name": "@app/shared",
+  "version": "1.0.0",
+  "description": "Platform-agnostic business logic, Zustand store, SQLite database layer, and Zod schemas",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./store": "./src/store/useAppStore.ts",
+    "./db": "./src/db/index.ts",
+    "./types": "./src/types/index.ts",
+    "./utils": "./src/utils/index.ts",
+    "./api": "./src/api/client.ts",
+    "./hooks": "./src/hooks/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@app/ui-core": "workspace:*",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "typescript": "^5.7.3"
+  }
+}

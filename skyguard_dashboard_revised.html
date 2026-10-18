@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyGuard - Smart Tracking System for Urban Delivery Drones</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        if (window.tailwind) tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 font-sans antialiased overflow-hidden flex flex-col">
+
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-md z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center">
+                <i class="fa-solid fa-satellite-dish text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                    SkyGuard <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">Payload Monitor v1.0</span>
+                </h1>
+                <p class="text-xs text-slate-400">Payload-based GPS tracking, ultrasonic hazard alerts &amp; GSM telemetry</p>
+            </div>
+        </div>
+
+        <nav class="flex items-center space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-700">
+            <button onclick="switchTab('live')" id="tab-live" class="tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition">
+                <i class="fa-solid fa-map-location-dot mr-1"></i> Live Tracking &amp; Geofence
+            </button>
+            <button onclick="switchTab('health')" id="tab-health" class="tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition">
+                <i class="fa-solid fa-heart-pulse mr-1"></i> Payload Health &amp; Telemetry
+            </button>
+            <button onclick="switchTab('hardware')" id="tab-hardware" class="tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition">
+                <i class="fa-solid fa-microchip mr-1"></i> Hardware &amp; Data Flow
+            </button>
+        </nav>
+
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-700/60 text-xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-slate-300">GSM: <strong class="text-emerald-400">GPRS (2G)</strong> · CSQ <strong id="hdr-csq" class="text-emerald-400">18</strong></span>
+            </div>
+            <div class="h-6 w-px bg-slate-700"></div>
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-semibold text-xs text-indigo-300 border border-slate-600">OP</div>
+                <span class="text-sm font-medium">Operator</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- VIEW 1: LIVE TRACKING & GEOFENCE -->
+        <div id="view-live" class="flex-1 flex flex-row overflow-hidden w-full h-full">
+            <aside class="w-80 bg-slate-800/80 border-r border-slate-700 flex flex-col shrink-0">
+                <div class="p-4 border-b border-slate-700/80">
+                    <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-box text-indigo-400"></i> Payload Status
+                    </h2>
+                </div>
+                <div class="p-4 space-y-3 flex-1 overflow-y-auto">
+                    <div class="bg-indigo-950/40 border-l-4 border-indigo-500 rounded p-3 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-sm text-slate-200">SG-01</span>
+                            <span id="unit-state" class="text-[10px] px-1.5 py-0.5 rounded border text-emerald-400 bg-emerald-500/10 border-emerald-500/20">Online</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Host: Test quadcopter · Payload-only (advisory)</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-2.5"><p class="text-[10px] text-slate-400 uppercase">Battery</p><p id="s-vbat" class="font-bold text-emerald-400 text-sm">3.86 V</p></div>
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-2.5"><p class="text-[10px] text-slate-400 uppercase">GSM signal</p><p id="s-csq" class="font-bold text-emerald-400 text-sm">CSQ 18</p></div>
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-2.5"><p class="text-[10px] text-slate-400 uppercase">GPS fix</p><p id="s-gps" class="font-bold text-slate-200 text-sm">8 sats · HDOP 1.2</p></div>
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-2.5"><p class="text-[10px] text-slate-400 uppercase">Obstacle (HC-SR04)</p><p id="s-dist" class="font-bold text-slate-200 text-sm">2.35 m</p></div>
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-2.5"><p class="text-[10px] text-slate-400 uppercase">Geofence</p><p id="s-geo" class="font-bold text-emerald-400 text-sm">Inside</p></div>
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-2.5"><p class="text-[10px] text-slate-400 uppercase">Last packet</p><p id="s-last" class="font-bold text-slate-200 text-sm">3 s ago</p></div>
+                    </div>
+                    <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-3 text-xs space-y-1">
+                        <p class="text-[10px] text-slate-400 uppercase">Position</p>
+                        <p id="s-pos" class="font-mono text-slate-200">-19.45612, 29.81251</p>
+                        <p class="text-[10px] text-slate-500">Telemetry interval: 5 s · Alert threshold: 1.5 m</p>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900/60 border-t border-slate-700 space-y-2 text-xs">
+                    <div class="flex justify-between text-slate-400"><span>Packets received (session):</span><span id="f-packets" class="font-bold text-slate-200">96</span></div>
+                    <div class="flex justify-between text-slate-400"><span>Hazard alerts:</span><span id="f-hazard" class="font-bold text-amber-400">1</span></div>
+                    <div class="flex justify-between text-slate-400"><span>Geofence alerts:</span><span id="f-geo" class="font-bold text-rose-400">0</span></div>
+                </div>
+            </aside>
+
+            <main class="flex-1 flex flex-col bg-slate-950 relative overflow-hidden">
+                <div class="absolute top-4 left-4 right-4 z-10 flex items-center justify-between gap-3 pointer-events-none">
+                    <div class="bg-slate-900/90 border border-slate-700/80 p-3 rounded-xl shadow-2xl pointer-events-auto flex items-center space-x-4">
+                        <div><p class="text-[10px] uppercase font-semibold text-slate-400">Selected payload</p><h3 class="text-sm font-bold text-indigo-400">SG-01 · Test Zone A</h3></div>
+                        <div class="h-6 w-px bg-slate-700"></div>
+                        <div class="text-xs"><span class="text-slate-400 block text-[10px]">ROUTE PROGRESS</span><span id="o-progress" class="font-semibold text-slate-200">58%</span></div>
+                        <div class="text-xs"><span class="text-slate-400 block text-[10px]">DISTANCE FLOWN</span><span id="o-dist" class="font-semibold text-slate-200">412 m</span></div>
+                        <div class="text-xs"><span class="text-slate-400 block text-[10px]">STATUS</span><span id="o-status" class="font-semibold text-emerald-400">Normal</span></div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-700/80 p-2 rounded-xl shadow-2xl pointer-events-auto flex items-center space-x-2">
+                        <button class="bg-emerald-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><i class="fa-solid fa-draw-polygon"></i> Edit Geofence</button>
+                        <button class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-600">Recenter</button>
+                    </div>
+                </div>
+
+                <div class="flex-1 relative">
+                    <canvas id="mapCanvas" class="w-full h-full block"></canvas>
+                    <div class="absolute bottom-4 left-4 bg-slate-900/80 border border-slate-700 px-3 py-2 rounded-lg text-[11px] space-y-1 text-slate-300 shadow-lg">
+                        <div class="flex items-center gap-2 font-semibold text-slate-200 mb-0.5"><i class="fa-solid fa-circle-info text-indigo-400"></i> Legend</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-500 inline-block"></span> GPS track (5 s packets)</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-1 bg-emerald-500 inline-block"></span> Geofence boundary</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Hazard alert location</div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span> Delivery destination</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border-t border-slate-800 p-4 h-44 flex flex-col shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-bell text-indigo-400"></i> Alert Log
+                        </h4>
+                        <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Timestamped · newest first</span>
+                    </div>
+                    <div id="log-container" class="flex-1 bg-slate-950/90 border border-slate-800/80 rounded-lg p-2.5 overflow-y-auto space-y-1.5 font-mono text-[11px]"></div>
+                </div>
+            </main>
+        </div>
+
+        <!-- VIEW 2: PAYLOAD HEALTH & TELEMETRY -->
+        <div id="view-health" class="hidden flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full">
+            <div class="max-w-6xl mx-auto w-full space-y-5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-indigo-400"></i> Payload Health &amp; Telemetry</h2>
+                        <p class="text-xs text-slate-400">Battery, GPS fix quality and GSM signal reported in every packet from SG-01.</p>
+                    </div>
+                    <span class="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg font-mono">Session: Test run 3</span>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl"><span class="text-xs font-semibold text-slate-400 uppercase">Battery voltage</span><h3 class="text-2xl font-bold text-white mt-2">3.86 V</h3><p class="text-[11px] text-emerald-400 mt-1">Low-battery alert below 3.50 V</p></div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl"><span class="text-xs font-semibold text-slate-400 uppercase">GSM signal (CSQ)</span><h3 class="text-2xl font-bold text-white mt-2">18 / 31</h3><p class="text-[11px] text-emerald-400 mt-1">Good · GPRS attached</p></div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl"><span class="text-xs font-semibold text-slate-400 uppercase">GPS fix quality</span><h3 class="text-2xl font-bold text-white mt-2">8 sats</h3><p class="text-[11px] text-indigo-300 mt-1">HDOP 1.2 (good)</p></div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl"><span class="text-xs font-semibold text-slate-400 uppercase">Packets this session</span><h3 class="text-2xl font-bold text-white mt-2">96</h3><p class="text-[11px] text-slate-400 mt-1">Interval 5 s · last 3 s ago</p></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-3"><i class="fa-solid fa-battery-three-quarters text-emerald-400 mr-1"></i> Battery voltage (V)</h3>
+                        <canvas id="chartBat" class="w-full" style="height:170px"></canvas>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-3"><i class="fa-solid fa-signal text-indigo-400 mr-1"></i> GSM signal quality (CSQ)</h3>
+                        <canvas id="chartCsq" class="w-full" style="height:170px"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-3"><i class="fa-solid fa-table-list text-indigo-400 mr-1"></i> Latest telemetry packets</h3>
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-[10px]">
+                            <tr><th class="p-2">Time (UTC)</th><th class="p-2">Lat</th><th class="p-2">Lon</th><th class="p-2">Sats</th><th class="p-2">HDOP</th><th class="p-2">Dist (m)</th><th class="p-2">VBat (V)</th><th class="p-2">CSQ</th><th class="p-2">Alert</th></tr>
+                        </thead>
+                        <tbody id="pkt-body" class="divide-y divide-slate-800/60 font-mono text-slate-300"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: HARDWARE & DATA FLOW -->
+        <div id="view-hardware" class="hidden flex-1 flex-col bg-slate-950 p-6 overflow-y-auto w-full h-full">
+            <div class="max-w-6xl mx-auto w-full space-y-5">
+                <div class="border-b border-slate-800 pb-4">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-microchip text-indigo-400"></i> Hardware &amp; Data Flow</h2>
+                    <p class="text-xs text-slate-400">Components of the SkyGuard payload and how data reaches this dashboard.</p>
+                </div>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-2">
+                        <div class="w-10 h-10 rounded-lg bg-sky-600/20 text-sky-400 flex items-center justify-center border border-sky-500/30"><i class="fa-solid fa-microchip"></i></div>
+                        <h3 class="text-sm font-bold text-white">ESP32 Controller</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">Dual-core 240 MHz. Talks to the GPS and SIM800L over software serial (GPIO16/17 and GPIO26/27), reads the HC-SR04 on GPIO and builds a JSON packet every 5 s.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-2">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30"><i class="fa-solid fa-satellite"></i></div>
+                        <h3 class="text-sm font-bold text-white">GPS Module (NEO-6M)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">NMEA output at 1 Hz, 2.5 m CEP in open sky. Position, satellites in use and HDOP are sent in every packet.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-2">
+                        <div class="w-10 h-10 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center border border-amber-500/30"><i class="fa-solid fa-wave-square"></i></div>
+                        <h3 class="text-sm font-bold text-white">Ultrasonic Sensor (HC-SR04)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">Range 2 cm to 4 m, ~15° beam, sampled 5 times per second. Raises an advisory hazard alert below 1.5 m; it does not steer the drone.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl space-y-2">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30"><i class="fa-solid fa-tower-broadcast"></i></div>
+                        <h3 class="text-sm font-bold text-white">GSM Module (SIM800L)</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">Quad-band 2G GSM/GPRS. Sends packets by HTTP POST and falls back to SMS for alerts when GPRS is unavailable.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">System workflow</h3>
+                    <div class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-indigo-300 border border-slate-800 leading-relaxed space-y-2">
+                        <p>1. <strong>Geofence set-up:</strong> The operator draws the permitted flight area on the dashboard map.</p>
+                        <p>2. <strong>In-flight telemetry:</strong> Every 5 s the payload sends position, fix quality, obstacle distance, battery voltage and GSM signal over GPRS.</p>
+                        <p>3. <strong>Server checks:</strong> The PHP endpoint on Hostinger stores each packet in MySQL, tests the position against the geofence and checks the alert thresholds.</p>
+                        <p>4. <strong>Operator alerts:</strong> Hazard, geofence, low-battery and link-loss alerts appear in the alert log; the operator decides what action to take.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Example telemetry packet (JSON)</h3>
+                    <pre class="bg-slate-950 p-4 rounded-lg font-mono text-xs text-emerald-300 border border-slate-800 leading-relaxed">{"id":"SG-01","ts":"2026-10-04T10:15:05Z","lat":-19.456121,"lon":29.812514,
+ "sats":8,"hdop":1.2,"dist":2.35,"vbat":3.86,"csq":18,"alert":"none"}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---- Demo data (replace with live data from the server) ----
+        const geofence = [[0.10,0.18],[0.62,0.12],[0.88,0.40],[0.80,0.82],[0.30,0.88],[0.08,0.55]];
+        const route = [[0.14,0.30],[0.24,0.34],[0.33,0.40],[0.41,0.47],[0.48,0.50],[0.55,0.52],[0.62,0.55],[0.68,0.60],[0.74,0.64],[0.80,0.70]];
+        const breachPoint = [0.93,0.55];
+        let scenario = 'normal';
+        let canvas, ctx;
+
+        function T(i){ const d=new Date(Date.UTC(2026,9,4,10,15,5)-i*5000); return d.toISOString().substr(11,8); }
+
+        const logsNormal = [
+            ['success', T(0), 'Telemetry packet #96 received from SG-01 (8 sats, HDOP 1.2, CSQ 18).'],
+            ['info',    T(1), 'Packet #95 received · position -19.45605, 29.81238 · inside geofence.'],
+            ['warning', T(14),'HAZARD: HC-SR04 reported object at 1.12 m (threshold 1.5 m). Operator notified.'],
+            ['success', T(15),'Obstacle cleared: distance 2.84 m.'],
+            ['info',    T(60),'Geofence "Test Zone A" loaded (6 vertices).'],
+            ['info',    T(95),'SG-01 connected · GPRS attached · first GPS fix after 31 s.'],
+        ];
+        const logsBreach = [
+            ['danger',  T(0), 'GEOFENCE: SG-01 left boundary "Test Zone A" at -19.45531, 29.81402. Alert raised in 4 s.'],
+            ['success', T(1), 'Telemetry packet #104 received from SG-01 (7 sats, HDOP 1.4, CSQ 16).'],
+            ['warning', T(22),'HAZARD: HC-SR04 reported object at 1.12 m (threshold 1.5 m). Operator notified.'],
+            ['success', T(23),'Obstacle cleared: distance 2.84 m.'],
+            ['info',    T(68),'Geofence "Test Zone A" loaded (6 vertices).'],
+        ];
+
+        window.onload = function () {
+            canvas = document.getElementById('mapCanvas');
+            ctx = canvas.getContext('2d');
+            switchTab('live');
+            setScenario('normal');
+            window.addEventListener('resize', () => { sizeCanvas(canvas); drawMap(); });
+            buildPackets(); drawCharts();
+        };
+
+        function sizeCanvas(c) {
+            const r = c.getBoundingClientRect();
+            c.width = r.width * devicePixelRatio; c.height = r.height * devicePixelRatio;
+            const x = c.getContext('2d'); x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); return [r.width, r.height];
+        }
+
+        function switchTab(tab) {
+            ['live','health','hardware'].forEach(t => {
+                const v = document.getElementById('view-'+t), b = document.getElementById('tab-'+t);
+                v.classList.toggle('hidden', t !== tab); v.classList.toggle('flex', t === tab);
+                b.className = 'tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition ' + (t === tab ? 'bg-indigo-600 text-white shadow' : 'text-slate-300 hover:text-white');
+            });
+            if (tab === 'live') { sizeCanvas(canvas); drawMap(); }
+            if (tab === 'health') drawCharts();
+        }
+
+        function setScenario(s) {
+            scenario = s;
+            const breach = s === 'breach';
+            const set = (id, txt, cls) => { const e = document.getElementById(id); e.textContent = txt; if (cls) e.className = cls; };
+            set('s-geo', breach ? 'OUTSIDE' : 'Inside', 'font-bold text-sm ' + (breach ? 'text-rose-400' : 'text-emerald-400'));
+            set('o-status', breach ? 'Geofence breach' : 'Normal', 'font-semibold ' + (breach ? 'text-rose-400' : 'text-emerald-400'));
+            set('unit-state', breach ? 'Geofence alert' : 'Online', 'text-[10px] px-1.5 py-0.5 rounded border ' + (breach ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'));
+            set('f-geo', breach ? '1' : '0'); set('f-packets', breach ? '104' : '96');
+            set('s-pos', breach ? '-19.45531, 29.81402' : '-19.45612, 29.81251');
+            set('s-gps', breach ? '7 sats · HDOP 1.4' : '8 sats · HDOP 1.2');
+            set('s-csq', breach ? 'CSQ 16' : 'CSQ 18'); set('hdr-csq', breach ? '16' : '18');
+            set('o-progress', breach ? '71%' : '58%'); set('o-dist', breach ? '503 m' : '412 m');
+            const box = document.getElementById('log-container'); box.innerHTML = '';
+            (breach ? logsBreach : logsNormal).forEach(l => addLog(...l));
+            if (canvas) { sizeCanvas(canvas); drawMap(); }
+        }
+
+        function addLog(type, time, msg) {
+            const c = { info:['text-slate-300','fa-circle-info text-indigo-400'], warning:['text-amber-300','fa-triangle-exclamation text-amber-400'],
+                        danger:['text-rose-300 font-bold','fa-circle-exclamation text-rose-500'], success:['text-emerald-300','fa-circle-check text-emerald-400'] }[type];
+            const d = document.createElement('div'); d.className = 'flex items-center gap-2 py-0.5 ' + c[0];
+            d.innerHTML = `<span class="text-slate-500">[${time}]</span> <i class="fa-solid ${c[1]}"></i> <span>${msg}</span>`;
+            document.getElementById('log-container').appendChild(d);
+        }
+
+        function drawMap() {
+            const [w, h] = [canvas.width / devicePixelRatio, canvas.height / devicePixelRatio];
+            const P = p => [p[0]*w, p[1]*h];
+            ctx.clearRect(0,0,w,h);
+            // street grid
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+            for (let x = 0; x < w; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for (let y = 0; y < h; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+            ctx.strokeStyle = '#273449'; ctx.lineWidth = 8;
+            [[0,0.45,1,0.45],[0.5,0,0.5,1]].forEach(r => { ctx.beginPath(); ctx.moveTo(r[0]*w,r[1]*h); ctx.lineTo(r[2]*w,r[3]*h); ctx.stroke(); });
+            // geofence
+            ctx.beginPath(); geofence.forEach((p,i) => { const [x,y]=P(p); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.closePath();
+            ctx.fillStyle = scenario==='breach' ? 'rgba(244,63,94,0.06)' : 'rgba(16,185,129,0.06)'; ctx.fill();
+            ctx.setLineDash([8,6]); ctx.lineWidth = 2; ctx.strokeStyle = scenario==='breach' ? '#f43f5e' : '#10b981'; ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#6ee7b7'; ctx.font = '11px Inter, sans-serif'; const g=P(geofence[0]); ctx.fillText('Geofence: Test Zone A', g[0]+6, g[1]+16);
+            // hub
+            const hub = P(route[0]); ctx.fillStyle='#312e81'; ctx.strokeStyle='#6366f1'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hub[0],hub[1],18,0,7); ctx.fill(); ctx.stroke();
+            ctx.fillStyle='#a5b4fc'; ctx.font='10px Inter, sans-serif'; ctx.fillText('LAUNCH POINT', hub[0]-34, hub[1]+32);
+            // track
+            const n = scenario==='breach' ? route.length : 7;
+            let pts = route.slice(0, n); if (scenario==='breach') pts = pts.concat([[0.87,0.62], breachPoint]);
+            ctx.strokeStyle='#6366f1'; ctx.lineWidth=2.5; ctx.beginPath(); pts.forEach((p,i)=>{const [x,y]=P(p); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke();
+            pts.forEach(p=>{ const [x,y]=P(p); ctx.fillStyle='#818cf8'; ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fill(); });
+            // planned remainder + destination
+            const dest = P([0.80,0.70]);
+            if (scenario!=='breach') { ctx.setLineDash([4,4]); ctx.strokeStyle='#475569'; ctx.lineWidth=1.5; ctx.beginPath(); const l=P(pts[pts.length-1]); ctx.moveTo(l[0],l[1]); ctx.lineTo(dest[0],dest[1]); ctx.stroke(); ctx.setLineDash([]); }
+            ctx.fillStyle='#f43f5e'; ctx.beginPath(); ctx.arc(dest[0],dest[1],6,0,7); ctx.fill(); ctx.fillStyle='#fda4af'; ctx.fillText('DESTINATION', dest[0]+10, dest[1]+4);
+            // hazard marker
+            const hz = P(route[4]); ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(hz[0],hz[1],7,0,7); ctx.fill();
+            ctx.fillStyle='#fcd34d'; ctx.fillText('Hazard 1.12 m', hz[0]+10, hz[1]-8);
+            // current position
+            const cur = P(pts[pts.length-1]);
+            ctx.fillStyle='#ffffff'; ctx.strokeStyle= scenario==='breach' ? '#f43f5e' : '#6366f1'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(cur[0],cur[1],10,0,7); ctx.fill(); ctx.stroke();
+            ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(cur[0],cur[1],17,0,7); ctx.stroke();
+            ctx.fillStyle='#e2e8f0'; ctx.font='bold 11px Inter, sans-serif'; ctx.fillText('SG-01', cur[0]+20, cur[1]+4);
+            if (scenario==='breach') { ctx.fillStyle='#fda4af'; ctx.font='bold 11px Inter, sans-serif'; ctx.fillText('OUTSIDE GEOFENCE', cur[0]-50, cur[1]+34); }
+        }
+
+        function buildPackets() {
+            const rows = [
+                [T(0),'-19.456121','29.812514',8,'1.2','2.35','3.86',18,'none'],
+                [T(1),'-19.456052','29.812381',8,'1.2','2.41','3.86',18,'none'],
+                [T(2),'-19.455984','29.812247',8,'1.3','2.38','3.87',17,'none'],
+                [T(3),'-19.455911','29.812109',7,'1.4','2.84','3.87',17,'none'],
+                [T(4),'-19.455843','29.811972',7,'1.4','1.12','3.87',18,'hazard'],
+                [T(5),'-19.455776','29.811840',8,'1.3','3.02','3.88',18,'none'],
+            ];
+            document.getElementById('pkt-body').innerHTML = rows.map(r =>
+                `<tr>${r.map((c,i)=>`<td class="p-2 ${i===8 && c==='hazard' ? 'text-amber-400 font-bold' : ''}">${c}</td>`).join('')}</tr>`).join('');
+        }
+
+        function drawCharts() {
+            const bat = [3.98,3.97,3.96,3.95,3.95,3.94,3.93,3.92,3.92,3.91,3.90,3.90,3.89,3.88,3.88,3.87,3.87,3.86];
+            const csq = [14,15,17,18,18,16,15,17,19,18,18,17,16,18,19,18,17,18];
+            chart('chartBat', bat, 3.4, 4.1, '#10b981', 3.5, 'Low-battery threshold 3.50 V');
+            chart('chartCsq', csq, 0, 31, '#6366f1', 10, 'Marginal signal below 10');
+        }
+
+        function chart(id, data, lo, hi, color, thr, thrLabel) {
+            const c = document.getElementById(id); if (!c || !c.offsetWidth) return;
+            const [w, h] = sizeCanvas(c); const x = c.getContext('2d');
+            const L=36, R=10, Tp=10, B=22, X=i=>L+i*(w-L-R)/(data.length-1), Y=v=>Tp+(hi-v)*(h-Tp-B)/(hi-lo);
+            x.clearRect(0,0,w,h); x.font='10px Inter, sans-serif'; x.fillStyle='#64748b'; x.strokeStyle='#1e293b'; x.lineWidth=1;
+            for (let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4, y=Y(v); x.beginPath(); x.moveTo(L,y); x.lineTo(w-R,y); x.stroke(); x.fillText(hi>10?Math.round(v):v.toFixed(2), 2, y+3); }
+            x.fillText('-90 s', L, h-6); x.fillText('now', w-R-20, h-6);
+            x.setLineDash([4,4]); x.strokeStyle='#f43f5e'; x.beginPath(); x.moveTo(L,Y(thr)); x.lineTo(w-R,Y(thr)); x.stroke(); x.setLineDash([]);
+            x.fillStyle='#fda4af'; x.fillText(thrLabel, L+6, Y(thr)-4);
+            x.strokeStyle=color; x.lineWidth=2; x.beginPath(); data.forEach((v,i)=> i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v))); x.stroke();
+        }
+    </script>
+</body>
+</html>

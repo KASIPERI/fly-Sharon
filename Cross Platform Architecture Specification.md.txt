@@ -1,0 +1,307 @@
+﻿Technical Architecture Specification: Unified Cross-Platform System
+Author: Technical Architecture Team
+Target Platforms: Web, Desktop (macOS, Windows, Linux), Mobile (iOS & Android)
+Core Technologies: React, Electron, React Native, TypeScript, Turborepo
+________________
+
+
+1. Executive Summary
+This document defines the unified, cross-platform technical architecture designed to target Web (React DOM), Desktop (Electron), and Mobile (React Native / Expo) from a single, cohesive code repository.
+By establishing a clear separation between Shared Business Logic (APIs, state management, validation, domain models) and Platform-Specific UI Rendering, this architecture achieves ~70–80% code reuse across all client applications. This minimizes development overhead, guarantees state consistency across devices, and ensures high performance by using native rendering engines where appropriate.
+________________
+
+
+2. High-Level System Architecture
+                               ┌───────────────────────────────────────────────┐
+                               │             Shared Logic Layer                │
+                               │  (@app/shared: TypeScript, Zustand/Redux,     │
+                               │   TanStack Query, Zod Schemas, API Clients)   │
+                               └───────────────────────┬───────────────────────┘
+                                                       │
+                     ┌─────────────────────────────────┼─────────────────────────────────┐
+                     ▼                                 ▼                                 ▼
+         ┌───────────────────────┐         ┌───────────────────────┐         ┌───────────────────────┐
+         │     apps/web          │         │     apps/desktop      │         │     apps/mobile       │
+         │ (React DOM + Tailwind)│         │  (Electron Wrapper)   │         │ (React Native / Expo) │
+         └───────────┬───────────┘         └───────────┬───────────┘         └───────────┬───────────┘
+                     │                                 │                                 │
+                     ▼                                 ▼                                 ▼
+            Modern Web Browsers                Windows, macOS, Linux                iOS & Android
+
+________________
+
+
+3. Technology Stack & Strategy
+Category
+	Technology Selected
+	Justification
+	Monorepo Engine
+	Turborepo + pnpm
+	Ultra-fast incremental builds, remote caching, and strict workspace isolation.
+	Language
+	TypeScript (v5+)
+	Strict typing across shared models, APIs, and client-side code.
+	Global State
+	Zustand
+	Minimal boilerplate, platform-agnostic, and works seamlessly across React DOM and React Native.
+	Server State / Cache
+	TanStack Query (React Query)
+	Automatic caching, re-validation, offline persistence, and synchronized network fetching.
+	Web Platform
+	React DOM + Vite + Tailwind CSS
+	Lightning-fast HMR, lightweight output bundle, and modern utility-first CSS styling.
+	Desktop Platform
+	Electron
+	Wraps the web application, providing native OS integration, IPC communication, and local file access.
+	Mobile Platform
+	React Native + Expo
+	Direct compilation to native iOS (UIKit) and Android (Views) components with direct access to device hardware.
+	
+
+________________
+
+
+4. Repository Directory Structure
+my-crossplatform-system/
+├── packages/
+│   ├── shared/                   # Core platform-agnostic business logic
+│   │   ├── src/
+│   │   │   ├── api/              # Axios / Fetch client and WebSocket handlers
+│   │   │   ├── hooks/            # Custom React hooks (e.g., useAuth, useTelemetry)
+│   │   │   ├── store/            # State stores (Zustand / Redux)
+│   │   │   ├── types/            # TypeScript interfaces & domain models
+│   │   │   └── utils/            # Helper functions & validation schemas (Zod)
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── ui-core/                  # Shared styling primitives / design tokens
+│       ├── src/
+│       │   ├── theme.ts          # Color palettes, typography, spacing tokens
+│       │   └── constants.ts
+│       └── package.json
+│
+├── apps/
+│   ├── web/                      # Web Application (React DOM + Vite + Tailwind)
+│   │   ├── src/
+│   │   │   ├── components/       # Web-specific UI components
+│   │   │   ├── pages/            # Web route views
+│   │   │   └── App.tsx
+│   │   ├── index.html
+│   │   ├── vite.config.ts
+│   │   └── package.json
+│   │
+│   ├── desktop/                  # Desktop Application (Electron)
+│   │   ├── src/
+│   │   │   ├── main/             # Electron main process (Node.js)
+│   │   │   ├── preload/          # Context bridge script for security
+│   │   │   └── renderer/         # Renderer process (Imports apps/web or shared UI)
+│   │   ├── electron-builder.json
+│   │   └── package.json
+│   │
+│   └── mobile/                   # Mobile Application (React Native / Expo)
+│       ├── src/
+│       │   ├── components/       # Mobile UI components (View, Text, FlatList)
+│       │   ├── screens/          # Mobile screen components
+│       │   └── App.tsx
+│       ├── app.json
+│       └── package.json
+│
+├── turbo.json
+├── pnpm-workspace.yaml
+├── package.json
+└── tsconfig.base.json
+
+________________
+
+
+5. Reference Code Implementations
+A. Shared Business Logic & State (packages/shared/src/store/useAppStore.ts)
+import { create } from 'zustand';
+
+
+interface AppState {
+  activeUnitId: string | null;
+  connectionStatus: 'connected' | 'disconnected' | 'connecting';
+  setActiveUnit: (id: string) => void;
+  setConnectionStatus: (status: 'connected' | 'disconnected' | 'connecting') => void;
+}
+
+
+export const useAppStore = create<AppState>((set) => ({
+  activeUnitId: 'UNIT-01',
+  connectionStatus: 'connected',
+  setActiveUnit: (id) => set({ activeUnitId: id }),
+  setConnectionStatus: (status) => set({ connectionStatus: status }),
+}));
+
+B. Web App Component (apps/web/src/App.tsx)
+```tsx
+import React from 'react';
+import { useAppStore } from '@app/shared';
+
+
+export function App() {
+  const { activeUnitId, connectionStatus, setActiveUnit } = useAppStore();
+
+
+  return (
+    <div className="flex flex-col h-screen bg-slate-900 text-white p-6 font-sans">
+      <header className="flex justify-between items-center border-b border-slate-700 pb-4">
+        <h1 className="text-xl font-bold">Web Control Center</h1>
+        <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+          Status: {connectionStatus}
+        </span>
+      </header>
+
+
+      <main className="mt-6 flex-1 space-y-4">
+        <p className="text-sm text-slate-300">
+          Selected Unit ID: <strong className="text-indigo-400">{activeUnitId}</strong>
+        </p>
+
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => setActiveUnit('UNIT-01')}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition"
+          >
+            Select Unit 1
+          </button>
+          <button
+            onClick={() => setActiveUnit('UNIT-02')}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition"
+          >
+            Select Unit 2
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+}
+```
+
+
+C. Desktop Main Process (apps/desktop/src/main/main.ts)
+import { app, BrowserWindow, ipcMain } from 'electron';
+import path from 'path';
+
+
+function createWindow() {
+  const mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    titleBarStyle: 'hiddenInset',
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../../web-dist/index.html'));
+  }
+}
+
+
+app.whenReady().then(createWindow);
+
+
+ipcMain.handle('get-system-info', () => {
+  return { platform: process.platform, arch: process.arch };
+});
+
+D. Mobile App View (apps/mobile/App.tsx)
+```tsx
+import React from 'react';
+import { StyleSheet, Text, View, Pressable, SafeAreaView } from 'react-native';
+import { useAppStore } from '@app/shared';
+
+
+export default function MobileApp() {
+  const { activeUnitId, connectionStatus, setActiveUnit } = useAppStore();
+
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Mobile Field Unit</Text>
+        <Text style={styles.statusBadge}>Status: {connectionStatus}</Text>
+      </View>
+
+
+      <View style={styles.content}>
+        <Text style={styles.label}>Selected Unit ID:</Text>
+        <Text style={styles.value}>{activeUnitId}</Text>
+
+
+        <Pressable style={styles.buttonPrimary} onPress={() => setActiveUnit('UNIT-01')}>
+          <Text style={styles.buttonText}>Select Unit 1</Text>
+        </Pressable>
+
+
+        <Pressable style={styles.buttonSecondary} onPress={() => setActiveUnit('UNIT-02')}>
+          <Text style={styles.buttonText}>Select Unit 2</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0f172a' },
+  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { color: '#ffffff', fontSize: 18, fontWeight: 'bold' },
+  statusBadge: { color: '#34d399', fontSize: 12 },
+  content: { padding: 16 },
+  label: { color: '#94a3b8', fontSize: 14 },
+  value: { color: '#818cf8', fontSize: 22, fontWeight: 'bold', marginVertical: 12 },
+  buttonPrimary: { backgroundColor: '#4f46e5', padding: 12, borderRadius: 8, marginBottom: 8, alignItems: 'center' },
+  buttonSecondary: { backgroundColor: '#1e293b', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', alignItems: 'center' },
+  buttonText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+});
+```
+
+
+________________
+
+
+6. Development Operations & Build Automation
+Workspace Monorepo Configuration (turbo.json)
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", ".next/**"]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
+
+Execution Commands
+* Install all dependencies across packages:
+pnpm install
+* Run all applications concurrently:
+pnpm dev
+* Target individual platform builds:
+   * Web: pnpm --filter web build
+   * Desktop: pnpm --filter desktop build
+   * Mobile: pnpm --filter mobile build
+________________
+
+
+7. Deployment & Distribution Pipeline
+   1. Web Deployment: Automated CI/CD pipeline building static artifacts and hosting on Vercel, AWS CloudFront, or Netlify.
+   2. Desktop Distribution: Package installers (.dmg, .exe, .AppImage) generated via electron-builder and distributed via auto-updater endpoints.
+   3. Mobile Distribution: Expo Application Services (EAS) pipelines building native iOS (.ipa) and Android (.aab) binaries for submission to Apple App Store and Google Play Store.

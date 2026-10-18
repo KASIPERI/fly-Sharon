@@ -1,0 +1,23 @@
+{
+  "name": "@app/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production Electron desktop application for SkyGuard Mission Control with secure IPC and local SQLite",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build:main": "tsc -p tsconfig.json",
+    "dev": "pnpm build:main && electron .",
+    "build": "pnpm build:main && electron-builder",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*",
+    "@app/ui-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.3"
+  }
+}
